@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { ActBlock } from "./ActBlock";
 import type { Stage, Act } from "../../types";
 import { useSelectionStore } from "../../stores";
@@ -67,58 +67,81 @@ export function TimelineGrid({
     [allSelectedActs],
   );
 
+  const headerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const syncHeaderScroll = () => {
+    if (headerRef.current && bodyRef.current) {
+      headerRef.current.scrollLeft = bodyRef.current.scrollLeft;
+    }
+  };
+
   const hours = Array.from(
     { length: totalHours + 1 },
     (_, i) => (startHour + i) % 24,
   );
 
   return (
-    <div
-      className="flex overflow-x-auto overflow-y-auto max-h-[calc(100vh-8rem)]"
-      style={{ minHeight: `${totalHeight}px` }}
-    >
-      {/* Time ruler */}
-      <div
-        className="sticky left-0 z-20 bg-neutral-950 dark:bg-neutral-950 w-14 shrink-0 relative"
-        style={{ height: totalHeight }}
-      >
-        {hours.map((h, i) => (
-          <div
-            key={i}
-            className="absolute left-0 right-0 text-[10px] text-neutral-500 pr-1 text-right"
-            style={{ top: i * HOUR_HEIGHT_PX - 6 }}
-          >
-            {String(h).padStart(2, "0")}:00
-          </div>
-        ))}
-        {/* Horizontal gridlines */}
-        {hours.map((_, i) => (
-          <div
-            key={`grid-${i}`}
-            className="absolute left-14 right-0 border-t border-neutral-800"
-            style={{ top: i * HOUR_HEIGHT_PX, width: "100vw" }}
-          />
-        ))}
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* ── Fixed header row ── */}
+      <div className="flex shrink-0 overflow-hidden border-b border-neutral-800">
+        {/* Corner cell above time ruler */}
+        <div className="w-14 shrink-0 bg-neutral-950" />
+        {/* Stage name headers — scroll horizontally in sync via JS-free trick:
+            wrap in a div that matches the scrollable body width */}
+        <div ref={headerRef} className="flex flex-1 overflow-hidden">
+          {stages.map((stage) => (
+            <div
+              key={stage.id}
+              className="min-w-48 w-52 shrink-0 px-3 py-2 text-sm font-bold text-white text-center leading-tight shadow-md"
+              style={{ backgroundColor: stage.color ?? "#374151" }}
+            >
+              {stage.name}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Stage columns */}
-      {stages.map((stage) => (
-        <div key={stage.id} className="flex flex-col min-w-40 w-44 shrink-0">
-          {/* Stage header */}
-          <div
-            className="sticky top-0 z-10 px-2 py-1 text-xs font-bold text-white text-center truncate"
-            style={{ backgroundColor: stage.color ?? "#374151" }}
-          >
-            {stage.name}
-          </div>
+      {/* ── Scrollable body ── */}
+      <div
+        ref={bodyRef}
+        className="flex flex-1 overflow-auto"
+        onScroll={syncHeaderScroll}
+      >
+        {/* Time ruler */}
+        <div
+          className="sticky left-0 z-20 bg-neutral-950 w-14 shrink-0 relative"
+          style={{ height: totalHeight }}
+        >
+          {hours.map((h, i) => (
+            <div
+              key={i}
+              className="absolute left-0 right-0 text-[10px] text-neutral-500 pr-1 text-right"
+              style={{ top: i * HOUR_HEIGHT_PX - 6 }}
+            >
+              {String(h).padStart(2, "0")}:00
+            </div>
+          ))}
+          {hours.map((_, i) => (
+            <div
+              key={`grid-${i}`}
+              className="absolute left-14 right-0 border-t border-neutral-800"
+              style={{ top: i * HOUR_HEIGHT_PX, width: "100vw" }}
+            />
+          ))}
+        </div>
 
-          {/* Acts */}
-          <div className="relative" style={{ height: totalHeight }}>
+        {/* Stage act columns */}
+        {stages.map((stage) => (
+          <div
+            key={stage.id}
+            className="relative min-w-48 w-52 shrink-0"
+            style={{ height: totalHeight }}
+          >
             {stage.acts.map((act) => {
               const actStart = toAbsoluteHour(act.startTime);
               const actEnd = toAbsoluteHour(act.endTime);
-              const topPct = ((actStart - startHour) / totalHours) * 100;
-              const heightPct = ((actEnd - actStart) / totalHours) * 100;
+              const topPx = (actStart - startHour) * HOUR_HEIGHT_PX;
               const heightPx = (actEnd - actStart) * HOUR_HEIGHT_PX;
               const selected = isSelected(festivalId, act.id);
               const conflicted = conflictSet.has(act.id);
@@ -130,16 +153,15 @@ export function TimelineGrid({
                   selected={selected}
                   conflicted={conflicted}
                   stageColor={stage.color ?? "#6b7280"}
-                  topPct={topPct}
-                  heightPct={heightPct}
+                  topPx={topPx}
                   heightPx={heightPx}
                   onClick={() => toggleAct(festivalId, act.id)}
                 />
               );
             })}
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

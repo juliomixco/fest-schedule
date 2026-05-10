@@ -7,8 +7,7 @@ interface ActBlockProps {
   selected: boolean;
   conflicted: boolean;
   stageColor: string;
-  topPct: number;
-  heightPct: number;
+  topPx: number;
   heightPx: number;
   onClick: () => void;
 }
@@ -18,8 +17,7 @@ export function ActBlock({
   selected,
   conflicted,
   stageColor,
-  topPct,
-  heightPct,
+  topPx,
   heightPx,
   onClick,
 }: ActBlockProps) {
@@ -43,8 +41,8 @@ export function ActBlock({
       onClick={onClick}
       title={`${act.name} — click to toggle`}
       style={{
-        top: `${topPct}%`,
-        height: `${heightPct}%`,
+        top: `${topPx}px`,
+        height: `${heightPx}px`,
         backgroundColor: selected ? stageColor : undefined,
       }}
       className={`absolute inset-x-1 rounded overflow-hidden text-left transition-opacity cursor-pointer z-10

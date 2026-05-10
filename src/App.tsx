@@ -11,8 +11,25 @@ const queryClient = new QueryClient();
 
 type View = "timeline" | "schedule" | "festivals";
 
+function getViewFromHash(): View {
+  const hash = window.location.hash.slice(1);
+  if (hash === "schedule" || hash === "festivals") return hash;
+  return "timeline";
+}
+
 function AppContent() {
-  const [view, setView] = useState<View>("timeline");
+  const [view, setViewState] = useState<View>(getViewFromHash);
+
+  const setView = (v: View) => {
+    window.location.hash = v;
+    setViewState(v);
+  };
+
+  useEffect(() => {
+    const onHashChange = () => setViewState(getViewFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
   const { festivals, activeFestivalId, activeDayId, loadFestivals } =
     useFestivalStore();
   const { loadSelections } = useSelectionStore();
@@ -30,10 +47,12 @@ function AppContent() {
   return (
     <div className="h-screen bg-neutral-950 text-white flex flex-col dark overflow-hidden">
       <Header view={view} setView={setView} />
-      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <main className="flex-1 min-h-0 relative overflow-hidden">
         {view === "timeline" &&
           (festival && activeDay ? (
-            <TimelineView day={activeDay} festivalId={festival.id} />
+            <div className="absolute inset-0">
+              <TimelineView day={activeDay} festivalId={festival.id} />
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-neutral-500 gap-3">
               <p className="text-lg">No festival loaded.</p>
@@ -46,7 +65,7 @@ function AppContent() {
             </div>
           ))}
         {view === "schedule" && festival && (
-          <div className="flex-1 min-h-0">
+          <div className="absolute inset-0">
             <MyScheduleView festival={festival} festivalId={festival.id} />
           </div>
         )}

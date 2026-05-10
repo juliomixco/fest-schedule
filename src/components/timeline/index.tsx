@@ -32,7 +32,7 @@ export function TimelineView({ day, festivalId }: TimelineViewProps) {
   }, [day]);
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="h-full overflow-hidden">
       <TimelineGrid
         stages={day.stages}
         festivalId={festivalId}
