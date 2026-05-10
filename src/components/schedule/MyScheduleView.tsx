@@ -1,9 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { differenceInMinutes, format } from "date-fns";
 import { useSelectionStore } from "../../stores";
 import { resolveThumbnail } from "../../services/thumbnails";
 import type { Act, Festival } from "../../types";
+
+interface OverlapSegment {
+  topPct: number;
+  heightPct: number;
+  color: string;
+  conflictName: string;
+  conflictStageName: string;
+  overlapStart: string; // HH:mm
+  overlapEnd: string; // HH:mm
+  overlapMinutes: number;
+}
 
 interface ScheduleRowProps {
   act: Act;
@@ -11,6 +22,47 @@ interface ScheduleRowProps {
   stageName: string;
   conflicted: boolean;
   festivalId: string;
+  overlapSegments: OverlapSegment[];
+}
+
+function OverlapSegmentPin({ seg }: { seg: OverlapSegment }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className="absolute w-full rounded-full"
+      style={{
+        top: `${seg.topPct}%`,
+        height: `${seg.heightPct}%`,
+        backgroundColor: seg.color,
+        opacity: 0.85,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {hovered && (
+        <div
+          className="absolute right-5 z-50 w-52 rounded-lg shadow-xl border border-white/10 bg-neutral-900 p-3 text-xs text-white pointer-events-none"
+          style={{ top: "50%", transform: "translateY(-50%)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="font-bold mb-1" style={{ color: seg.color }}>
+            {seg.conflictName}
+          </p>
+          <p className="text-neutral-400 mb-2">{seg.conflictStageName}</p>
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-yellow-400">⚠</span>
+            <span className="font-semibold">
+              {seg.overlapMinutes} min overlap
+            </span>
+          </div>
+          <p className="text-neutral-400">
+            {seg.overlapStart} – {seg.overlapEnd}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ScheduleRow({
@@ -19,6 +71,7 @@ function ScheduleRow({
   stageName,
   conflicted,
   festivalId,
+  overlapSegments,
 }: ScheduleRowProps) {
   const { data: thumbnail } = useQuery({
     queryKey: ["thumbnail", act.id],
@@ -31,7 +84,7 @@ function ScheduleRow({
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg p-3 mb-2 cursor-pointer transition-opacity
+      className={`relative flex items-center gap-3 rounded-lg p-3 mb-2 cursor-pointer transition-opacity overflow-hidden
         ${conflicted ? "ring-2 ring-yellow-400" : ""}`}
       style={{
         backgroundColor: `${stageColor}22`,
@@ -55,13 +108,20 @@ function ScheduleRow({
           {start} – {end}
         </p>
       </div>
-      {conflicted && (
-        <span
-          className="text-yellow-400 text-lg"
-          title="Overlaps with another selected act"
+
+      {/* Overlap bar on the right */}
+      {overlapSegments.length > 0 && (
+        <div
+          className="relative w-3 self-stretch shrink-0 rounded-full bg-white/10"
+          title="Overlap with other acts"
         >
-          ⚠
-        </span>
+          {overlapSegments.map((seg) => (
+            <OverlapSegmentPin
+              key={`${seg.conflictName}-${seg.topPct}`}
+              seg={seg}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -110,8 +170,8 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
     );
   }, [festival, festivalId, isSelected]);
 
-  const conflictSet = useMemo(() => {
-    const set = new Set<string>();
+  const overlapMap = useMemo(() => {
+    const map = new Map<string, OverlapSegment[]>();
     for (let i = 0; i < selectedActs.length; i++) {
       for (let j = i + 1; j < selectedActs.length; j++) {
         const a = selectedActs[i];
@@ -121,13 +181,42 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
         const aE = new Date(a.endTime).getTime();
         const bS = new Date(b.startTime).getTime();
         const bE = new Date(b.endTime).getTime();
-        if (aS < bE && aE > bS) {
-          set.add(a.id);
-          set.add(b.id);
-        }
+        const overlapS = Math.max(aS, bS);
+        const overlapE = Math.min(aE, bE);
+        if (overlapS >= overlapE) continue;
+
+        const aDur = aE - aS;
+        const bDur = bE - bS;
+        const overlapMins = Math.round((overlapE - overlapS) / 60000);
+        const fmtOverlapS = format(new Date(overlapS), "HH:mm");
+        const fmtOverlapE = format(new Date(overlapE), "HH:mm");
+
+        const segForA: OverlapSegment = {
+          topPct: ((overlapS - aS) / aDur) * 100,
+          heightPct: ((overlapE - overlapS) / aDur) * 100,
+          color: b.stageColor,
+          conflictName: b.name,
+          conflictStageName: b.stageName,
+          overlapStart: fmtOverlapS,
+          overlapEnd: fmtOverlapE,
+          overlapMinutes: overlapMins,
+        };
+        const segForB: OverlapSegment = {
+          topPct: ((overlapS - bS) / bDur) * 100,
+          heightPct: ((overlapE - overlapS) / bDur) * 100,
+          color: a.stageColor,
+          conflictName: a.name,
+          conflictStageName: a.stageName,
+          overlapStart: fmtOverlapS,
+          overlapEnd: fmtOverlapE,
+          overlapMinutes: overlapMins,
+        };
+
+        map.set(a.id, [...(map.get(a.id) ?? []), segForA]);
+        map.set(b.id, [...(map.get(b.id) ?? []), segForB]);
       }
     }
-    return set;
+    return map;
   }, [selectedActs]);
 
   if (selectedActs.length === 0) {
@@ -157,8 +246,9 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
         act={act}
         stageColor={act.stageColor}
         stageName={act.stageName}
-        conflicted={conflictSet.has(act.id)}
+        conflicted={overlapMap.has(act.id)}
         festivalId={festivalId}
+        overlapSegments={overlapMap.get(act.id) ?? []}
       />,
     );
   });
