@@ -119,6 +119,7 @@ export function TimelineGrid({
               const actEnd = toAbsoluteHour(act.endTime);
               const topPct = ((actStart - startHour) / totalHours) * 100;
               const heightPct = ((actEnd - actStart) / totalHours) * 100;
+              const heightPx = (actEnd - actStart) * HOUR_HEIGHT_PX;
               const selected = isSelected(festivalId, act.id);
               const conflicted = conflictSet.has(act.id);
 
@@ -131,6 +132,7 @@ export function TimelineGrid({
                   stageColor={stage.color ?? "#6b7280"}
                   topPct={topPct}
                   heightPct={heightPct}
+                  heightPx={heightPx}
                   onClick={() => toggleAct(festivalId, act.id)}
                 />
               );

@@ -9,6 +9,7 @@ interface ActBlockProps {
   stageColor: string;
   topPct: number;
   heightPct: number;
+  heightPx: number;
   onClick: () => void;
 }
 
@@ -19,6 +20,7 @@ export function ActBlock({
   stageColor,
   topPct,
   heightPct,
+  heightPx,
   onClick,
 }: ActBlockProps) {
   const { data: thumbnail } = useQuery({
@@ -27,7 +29,7 @@ export function ActBlock({
     staleTime: Infinity,
   });
 
-  const isSmall = heightPct < 5;
+  const isSmall = heightPx < 48;
 
   let ring = "ring-transparent";
   if (conflicted) ring = "ring-2 ring-yellow-400";
