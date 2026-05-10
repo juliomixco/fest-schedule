@@ -1,4 +1,4 @@
-import type { Festival } from '../types';
+import type { Festival } from "../types";
 
 export interface FestivalParser {
   /** Unique key for this parser, e.g. "graspop" */

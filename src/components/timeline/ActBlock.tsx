@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { resolveThumbnail } from '../../services/thumbnails';
-import type { Act } from '../../types';
+import { useQuery } from "@tanstack/react-query";
+import { resolveThumbnail } from "../../services/thumbnails";
+import type { Act } from "../../types";
 
 interface ActBlockProps {
   act: Act;
@@ -12,20 +12,28 @@ interface ActBlockProps {
   onClick: () => void;
 }
 
-export function ActBlock({ act, selected, conflicted, stageColor, topPct, heightPct, onClick }: ActBlockProps) {
+export function ActBlock({
+  act,
+  selected,
+  conflicted,
+  stageColor,
+  topPct,
+  heightPct,
+  onClick,
+}: ActBlockProps) {
   const { data: thumbnail } = useQuery({
-    queryKey: ['thumbnail', act.id],
+    queryKey: ["thumbnail", act.id],
     queryFn: () => resolveThumbnail(act.id, act.name, act.thumbnailUrl),
     staleTime: Infinity,
   });
 
   const isSmall = heightPct < 5;
 
-  let ring = 'ring-transparent';
-  if (conflicted) ring = 'ring-2 ring-yellow-400';
+  let ring = "ring-transparent";
+  if (conflicted) ring = "ring-2 ring-yellow-400";
   else if (selected) ring = `ring-2 ring-white/60`;
 
-  const opacity = selected ? 'opacity-100' : 'opacity-50 hover:opacity-75';
+  const opacity = selected ? "opacity-100" : "opacity-50 hover:opacity-75";
 
   return (
     <button
@@ -37,7 +45,7 @@ export function ActBlock({ act, selected, conflicted, stageColor, topPct, height
         backgroundColor: selected ? stageColor : undefined,
       }}
       className={`absolute inset-x-1 rounded overflow-hidden text-left transition-opacity cursor-pointer z-10
-        ${selected ? '' : 'bg-neutral-800 dark:bg-neutral-700'}
+        ${selected ? "" : "bg-neutral-800 dark:bg-neutral-700"}
         ${opacity} ${ring}`}
     >
       {!isSmall && thumbnail && (

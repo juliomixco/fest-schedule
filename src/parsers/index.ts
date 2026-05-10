@@ -1,5 +1,5 @@
-import type { FestivalParser } from './types';
-import { graspopParser } from './graspop';
+import type { FestivalParser } from "./types";
+import { graspopParser } from "./graspop";
 
 export const parsers: FestivalParser[] = [graspopParser];
 

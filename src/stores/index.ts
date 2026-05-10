@@ -1,40 +1,40 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { Festival } from '../types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { Festival } from "../types";
 import {
   getFestivals,
   saveFestival,
   deleteFestival as dbDeleteFestival,
   getSelections,
   saveSelections,
-} from '../db';
-import { buildGraspop2026Fixture } from '../fixtures/graspop2026';
+} from "../db";
+import { buildGraspop2026Fixture } from "../fixtures/graspop2026";
 
 // ---------------------------------------------------------------------------
 // Theme store
 // ---------------------------------------------------------------------------
 interface ThemeState {
-  theme: 'dark' | 'light';
+  theme: "dark" | "light";
   toggleTheme: () => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      theme: 'dark',
+      theme: "dark",
       toggleTheme: () => {
-        const next = get().theme === 'dark' ? 'light' : 'dark';
+        const next = get().theme === "dark" ? "light" : "dark";
         set({ theme: next });
-        document.documentElement.classList.toggle('dark', next === 'dark');
+        document.documentElement.classList.toggle("dark", next === "dark");
       },
     }),
-    { name: 'fest-theme' }
-  )
+    { name: "fest-theme" },
+  ),
 );
 
 // Apply saved theme on load
 const savedTheme = useThemeStore.getState().theme;
-document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+document.documentElement.classList.toggle("dark", savedTheme === "dark");
 
 // ---------------------------------------------------------------------------
 // Festival store
@@ -75,21 +75,32 @@ export const useFestivalStore = create<FestivalState>()((set, get) => ({
     await saveFestival(festival);
     set((s) => ({ festivals: [...s.festivals, festival] }));
     if (!get().activeFestivalId) {
-      set({ activeFestivalId: festival.id, activeDayId: festival.days[0]?.id ?? null });
+      set({
+        activeFestivalId: festival.id,
+        activeDayId: festival.days[0]?.id ?? null,
+      });
     }
   },
 
   updateFestival: async (festival) => {
     await saveFestival(festival);
-    set((s) => ({ festivals: s.festivals.map((f) => (f.id === festival.id ? festival : f)) }));
+    set((s) => ({
+      festivals: s.festivals.map((f) => (f.id === festival.id ? festival : f)),
+    }));
   },
 
   removeFestival: async (id) => {
     await dbDeleteFestival(id);
     set((s) => {
       const festivals = s.festivals.filter((f) => f.id !== id);
-      const activeFestivalId = s.activeFestivalId === id ? (festivals[0]?.id ?? null) : s.activeFestivalId;
-      const activeDayId = s.activeFestivalId === id ? (festivals[0]?.days[0]?.id ?? null) : s.activeDayId;
+      const activeFestivalId =
+        s.activeFestivalId === id
+          ? (festivals[0]?.id ?? null)
+          : s.activeFestivalId;
+      const activeDayId =
+        s.activeFestivalId === id
+          ? (festivals[0]?.days[0]?.id ?? null)
+          : s.activeDayId;
       return { festivals, activeFestivalId, activeDayId };
     });
   },
@@ -130,5 +141,6 @@ export const useSelectionStore = create<SelectionState>()((set, get) => ({
     saveSelections(festivalId, next);
   },
 
-  isSelected: (festivalId, actId) => get().selections[festivalId]?.has(actId) ?? false,
+  isSelected: (festivalId, actId) =>
+    get().selections[festivalId]?.has(actId) ?? false,
 }));

@@ -1,5 +1,5 @@
-import Dexie, { type Table } from 'dexie';
-import type { Festival } from '../types';
+import Dexie, { type Table } from "dexie";
+import type { Festival } from "../types";
 
 interface SelectionRecord {
   id: string; // festivalId
@@ -18,11 +18,11 @@ class FestScheduleDB extends Dexie {
   thumbnails!: Table<ThumbnailRecord, string>;
 
   constructor() {
-    super('FestScheduleDB');
+    super("FestScheduleDB");
     this.version(1).stores({
-      festivals: 'id, name',
-      selections: 'id',
-      thumbnails: 'actId, fetchedAt',
+      festivals: "id, name",
+      selections: "id",
+      thumbnails: "actId, fetchedAt",
     });
   }
 }
@@ -41,16 +41,24 @@ export async function getSelections(festivalId: string): Promise<Set<string>> {
   return new Set(record?.actIds ?? []);
 }
 
-export async function saveSelections(festivalId: string, actIds: Set<string>): Promise<void> {
+export async function saveSelections(
+  festivalId: string,
+  actIds: Set<string>,
+): Promise<void> {
   await db.selections.put({ id: festivalId, actIds: [...actIds] });
 }
 
 // --- Thumbnail helpers ---
-export async function getCachedThumbnail(actId: string): Promise<string | undefined> {
+export async function getCachedThumbnail(
+  actId: string,
+): Promise<string | undefined> {
   const record = await db.thumbnails.get(actId);
   return record?.url;
 }
 
-export async function cacheThumbnail(actId: string, url: string): Promise<void> {
+export async function cacheThumbnail(
+  actId: string,
+  url: string,
+): Promise<void> {
   await db.thumbnails.put({ actId, url, fetchedAt: Date.now() });
 }
