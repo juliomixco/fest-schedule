@@ -214,7 +214,10 @@ function ScheduleRow({
           backgroundColor: `${stageColor}22`,
           borderLeft: `4px solid ${stageColor}`,
         }}
-        onClick={() => toggleAct(festivalId, act.id)}
+        onClick={() => {
+          if (overlapSegments.length > 0) onToggleExpand();
+          else toggleAct(festivalId, act.id);
+        }}
       >
         <img
           src={
@@ -233,16 +236,9 @@ function ScheduleRow({
           </p>
         </div>
 
-        {/* Overlap bar — click expands detail */}
+        {/* Overlap indicator bar (decorative, click is on the card) */}
         {overlapSegments.length > 0 && (
-          <button
-            className="relative w-4 self-stretch shrink-0 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            title="Click to see conflict details"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleExpand();
-            }}
-          >
+          <div className="relative w-3 self-stretch shrink-0 rounded-full bg-white/10">
             {overlapSegments.map((seg) => (
               <div
                 key={`${seg.conflictName}-${seg.topPct}`}
@@ -255,7 +251,14 @@ function ScheduleRow({
                 }}
               />
             ))}
-          </button>
+          </div>
+        )}
+
+        {/* Chevron for conflicting acts */}
+        {overlapSegments.length > 0 && (
+          <span className="text-yellow-400 text-xs shrink-0">
+            {expanded ? "▲" : "▼"}
+          </span>
         )}
       </div>
 
@@ -427,9 +430,32 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
     );
   });
 
+  const conflictedActIds = [...overlapMap.keys()];
+  const allExpanded =
+    conflictedActIds.length > 0 &&
+    conflictedActIds.every((id) => expandedIds.has(id));
+
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedIds(new Set());
+    } else {
+      setExpandedIds(new Set(conflictedActIds));
+    }
+  };
+
   return (
     <div id="my-schedule-root" className="max-w-xl mx-auto px-4 py-4">
-      <h2 className="text-xl font-bold text-white mb-4">My Schedule</h2>
+      <div className="sticky top-0 z-20 flex items-center justify-between py-3 mb-2 bg-neutral-950/90 backdrop-blur border-b border-white/5">
+        <h2 className="text-xl font-bold text-white">My Schedule</h2>
+        {conflictedActIds.length > 0 && (
+          <button
+            className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+            onClick={toggleAll}
+          >
+            {allExpanded ? "Collapse all conflicts" : "Expand all conflicts"}
+          </button>
+        )}
+      </div>
       {rows}
     </div>
   );
