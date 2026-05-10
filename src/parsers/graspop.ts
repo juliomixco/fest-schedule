@@ -26,10 +26,18 @@ function parseTime(dayDate: string, timeStr: string): string {
   const [hStr, mStr] = timeStr.split(".");
   const h = parseInt(hStr, 10);
   const m = parseInt(mStr, 10);
-  const baseDate = parse(dayDate, "yyyy-MM-dd", new Date());
-  const date = h < 10 ? addDays(baseDate, 1) : baseDate;
-  date.setHours(h, m, 0, 0);
-  return date.toISOString();
+  const hh = String(h).padStart(2, "0");
+  const mm = String(m).padStart(2, "0");
+  // Past-midnight acts (00:xx–09:xx) belong to the next calendar date.
+  // Advance the day number directly to avoid any timezone conversion.
+  if (h < 10) {
+    const [y, mo, d] = dayDate.split("-").map(Number);
+    const nextDate = `${y}-${String(mo).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`;
+    return `${nextDate}T${hh}:${mm}:00`;
+  }
+  // Return a timezone-naive ISO string so the time is always read as-is,
+  // regardless of the user's local timezone.
+  return `${dayDate}T${hh}:${mm}:00`;
 }
 
 const DAY_ORDER = [

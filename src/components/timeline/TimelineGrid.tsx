@@ -12,12 +12,16 @@ interface TimelineGridProps {
   endHour: number;
 }
 
+/** Extract the absolute hour from a naive ISO string (e.g. "2026-06-18T15:35:00").
+ *  Reads HH:MM directly from the string to avoid any timezone conversion.
+ *  Past-midnight times (00:xx–09:xx) are treated as next-day (+24h). */
 function toAbsoluteHour(isoString: string): number {
-  const d = new Date(isoString);
-  let h = d.getHours() + d.getMinutes() / 60;
-  // Treat past-midnight times (0–9h) as next day
-  if (h < 10) h += 24;
-  return h;
+  const match = isoString.match(/T(\d{2}):(\d{2})/);
+  if (!match) return 0;
+  const h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const abs = h + m / 60;
+  return abs < 10 ? abs + 24 : abs;
 }
 
 function buildConflictSet(selectedActs: Act[]): Set<string> {

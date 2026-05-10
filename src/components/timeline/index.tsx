@@ -11,14 +11,16 @@ export function TimelineView({ day, festivalId }: TimelineViewProps) {
   const { startHour, endHour } = useMemo(() => {
     let min = 23;
     let max = 11;
+    const extractHour = (iso: string) => {
+      const match = iso.match(/T(\d{2}):(\d{2})/);
+      if (!match) return 0;
+      const abs = parseInt(match[1], 10) + parseInt(match[2], 10) / 60;
+      return abs < 10 ? abs + 24 : abs;
+    };
     day.stages.forEach((s) =>
       s.acts.forEach((a) => {
-        let h = new Date(a.startTime).getHours();
-        if (h < 10) h += 24;
-        let e =
-          new Date(a.endTime).getHours() +
-          new Date(a.endTime).getMinutes() / 60;
-        if (e < 10) e += 24;
+        const h = extractHour(a.startTime);
+        const e = extractHour(a.endTime);
         if (h < min) min = h;
         if (e > max) max = e;
       }),
