@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { differenceInMinutes, format } from "date-fns";
+import { differenceInMinutes, format, parseISO } from "date-fns";
 import { useSelectionStore } from "../../stores";
 import { resolveThumbnail } from "../../services/thumbnails";
 import type { Act, Festival } from "../../types";
@@ -279,11 +279,7 @@ function ScheduleRow({
   );
 }
 
-interface GapIndicatorProps {
-  minutes: number;
-}
-
-function GapIndicator({ minutes }: GapIndicatorProps) {
+function GapIndicator({ minutes }: { minutes: number }) {
   return (
     <div className="flex items-center gap-2 my-1 px-3 text-xs text-neutral-500">
       <div className="flex-1 border-t border-dashed border-neutral-700" />
@@ -293,14 +289,26 @@ function GapIndicator({ minutes }: GapIndicatorProps) {
   );
 }
 
-interface MyScheduleViewProps {
-  festival: Festival;
-  festivalId: string;
+interface DayDividerProps {
+  label: string;
+}
+function DayDivider({ label }: DayDividerProps) {
+  return (
+    <div className="flex items-center gap-3 my-3">
+      <div className="flex-1 border-t border-neutral-700" />
+      <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
+        {label}
+      </span>
+      <div className="flex-1 border-t border-neutral-700" />
+    </div>
+  );
 }
 
 export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
   const { isSelected } = useSelectionStore();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [filterDay, setFilterDay] = useState<string>("all");
+  const [conflictsOnly, setConflictsOnly] = useState(false);
 
   const toggleExpand = (id: string) =>
     setExpandedIds((prev) => {
@@ -394,26 +402,55 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
     return map;
   }, [selectedActs]);
 
-  if (selectedActs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-neutral-500">
-        <p className="text-lg">No acts selected yet.</p>
-        <p className="text-sm mt-1">
-          Go to the Timeline and tap acts to add them here.
-        </p>
-      </div>
-    );
-  }
+  // Derive unique days present in selection
+  const availableDays = useMemo(() => {
+    const seen = new Map<string, string>(); // dateKey -> label
+    selectedActs.forEach((act) => {
+      const d = act.startTime.slice(0, 10); // "2026-06-18"
+      if (!seen.has(d)) {
+        seen.set(d, format(parseISO(d), "EEE, MMM d"));
+      }
+    });
+    return [...seen.entries()]; // [dateKey, label][]
+  }, [selectedActs]);
 
+  const conflictedActIds = [...overlapMap.keys()];
+  const allExpanded =
+    conflictedActIds.length > 0 &&
+    conflictedActIds.every((id) => expandedIds.has(id));
+
+  const toggleAll = () => {
+    if (allExpanded) setExpandedIds(new Set());
+    else setExpandedIds(new Set(conflictedActIds));
+  };
+
+  // Apply filters
+  const filteredActs = useMemo(() => {
+    return selectedActs.filter((act) => {
+      if (filterDay !== "all" && !act.startTime.startsWith(filterDay))
+        return false;
+      if (conflictsOnly && !overlapMap.has(act.id)) return false;
+      return true;
+    });
+  }, [selectedActs, filterDay, conflictsOnly, overlapMap]);
+
+  // Build rows with day dividers
   const rows: React.ReactNode[] = [];
-  selectedActs.forEach((act, i) => {
-    if (i > 0) {
-      const prev = selectedActs[i - 1];
+  let lastDay = "";
+  filteredActs.forEach((act, i) => {
+    const dayKey = act.startTime.slice(0, 10);
+    if (dayKey !== lastDay) {
+      const label = format(parseISO(dayKey), "EEEE, MMMM d");
+      rows.push(<DayDivider key={`day-${dayKey}`} label={label} />);
+      lastDay = dayKey;
+    } else if (i > 0) {
+      const prev = filteredActs[i - 1];
       const gap = differenceInMinutes(
         new Date(act.startTime),
         new Date(prev.endTime),
       );
-      if (gap > 0) rows.push(<GapIndicator key={`gap-${i}`} minutes={gap} />);
+      if (gap > 0)
+        rows.push(<GapIndicator key={`gap-${act.id}`} minutes={gap} />);
     }
     rows.push(
       <ScheduleRow
@@ -430,33 +467,86 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
     );
   });
 
-  const conflictedActIds = [...overlapMap.keys()];
-  const allExpanded =
-    conflictedActIds.length > 0 &&
-    conflictedActIds.every((id) => expandedIds.has(id));
-
-  const toggleAll = () => {
-    if (allExpanded) {
-      setExpandedIds(new Set());
-    } else {
-      setExpandedIds(new Set(conflictedActIds));
-    }
-  };
+  if (selectedActs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-neutral-500">
+        <p className="text-lg">No acts selected yet.</p>
+        <p className="text-sm mt-1">
+          Go to the Timeline and tap acts to add them here.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div id="my-schedule-root" className="max-w-xl mx-auto px-4 py-4">
-      <div className="sticky top-0 z-20 flex items-center justify-between py-3 mb-2 bg-neutral-950/90 backdrop-blur border-b border-white/5">
-        <h2 className="text-xl font-bold text-white">My Schedule</h2>
-        {conflictedActIds.length > 0 && (
+    <div className="h-full min-h-0 flex flex-col">
+      {/* Pinned header */}
+      <div className="shrink-0 bg-neutral-950/95 backdrop-blur border-b border-neutral-800 px-4 pt-3 pb-2 z-20">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-white">My Schedule</h2>
+          {conflictedActIds.length > 0 && (
+            <button
+              className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+              onClick={toggleAll}
+            >
+              {allExpanded ? "Collapse all" : "Expand all conflicts"}
+            </button>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap pb-1">
+          {/* Day filter pills */}
           <button
-            className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
-            onClick={toggleAll}
+            className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+              filterDay === "all"
+                ? "bg-white text-neutral-900 border-white"
+                : "border-neutral-600 text-neutral-400 hover:border-neutral-400"
+            }`}
+            onClick={() => setFilterDay("all")}
           >
-            {allExpanded ? "Collapse all conflicts" : "Expand all conflicts"}
+            All days
           </button>
+          {availableDays.map(([key, label]) => (
+            <button
+              key={key}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                filterDay === key
+                  ? "bg-white text-neutral-900 border-white"
+                  : "border-neutral-600 text-neutral-400 hover:border-neutral-400"
+              }`}
+              onClick={() => setFilterDay(filterDay === key ? "all" : key)}
+            >
+              {label}
+            </button>
+          ))}
+
+          {/* Conflicts only toggle */}
+          {conflictedActIds.length > 0 && (
+            <button
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ml-auto ${
+                conflictsOnly
+                  ? "bg-yellow-400 text-neutral-900 border-yellow-400"
+                  : "border-neutral-600 text-neutral-400 hover:border-yellow-500"
+              }`}
+              onClick={() => setConflictsOnly((v) => !v)}
+            >
+              ⚠ Conflicts only
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div id="my-schedule-root" className="flex-1 overflow-y-auto px-4 py-3">
+        {filteredActs.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
+            No acts match the current filters.
+          </div>
+        ) : (
+          rows
         )}
       </div>
-      {rows}
     </div>
   );
 }

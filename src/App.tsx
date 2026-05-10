@@ -28,9 +28,9 @@ function AppContent() {
   const activeDay = festival?.days.find((d) => d.id === activeDayId);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex flex-col dark">
+    <div className="h-screen bg-neutral-950 text-white flex flex-col dark overflow-hidden">
       <Header view={view} setView={setView} />
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {view === "timeline" &&
           (festival && activeDay ? (
             <TimelineView day={activeDay} festivalId={festival.id} />
@@ -46,7 +46,9 @@ function AppContent() {
             </div>
           ))}
         {view === "schedule" && festival && (
-          <MyScheduleView festival={festival} festivalId={festival.id} />
+          <div className="flex-1 min-h-0">
+            <MyScheduleView festival={festival} festivalId={festival.id} />
+          </div>
         )}
         {view === "schedule" && !festival && (
           <div className="flex items-center justify-center h-64 text-neutral-500">
