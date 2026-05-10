@@ -30,6 +30,7 @@ export function ActBlock({
   });
 
   const isSmall = heightPx < 48;
+  const hasImage = heightPx >= 80;
 
   let ring = "ring-transparent";
   if (conflicted) ring = "ring-2 ring-yellow-400";
@@ -50,14 +51,6 @@ export function ActBlock({
         ${selected ? "" : "bg-neutral-800 dark:bg-neutral-700"}
         ${opacity} ${ring}`}
     >
-      {!isSmall && thumbnail && (
-        <img
-          src={thumbnail}
-          alt={act.name}
-          className="w-full h-12 object-cover object-top opacity-60"
-          loading="lazy"
-        />
-      )}
       <span className="block px-1 py-0.5 text-xs font-semibold text-white truncate leading-tight">
         {act.name}
       </span>
@@ -65,6 +58,14 @@ export function ActBlock({
         <span className="block px-1 text-[10px] text-white/70 truncate">
           {act.startTime.slice(11, 16)} – {act.endTime.slice(11, 16)}
         </span>
+      )}
+      {hasImage && thumbnail && (
+        <img
+          src={thumbnail}
+          alt={act.name}
+          className="w-full h-10 object-cover object-top opacity-60 mt-0.5"
+          loading="lazy"
+        />
       )}
     </button>
   );
