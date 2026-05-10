@@ -14,6 +14,14 @@ interface OverlapSegment {
   overlapStart: string; // HH:mm
   overlapEnd: string; // HH:mm
   overlapMinutes: number;
+  // raw ms for mini-timeline
+  actStartMs: number;
+  actEndMs: number;
+  conflictStartMs: number;
+  conflictEndMs: number;
+  overlapStartMs: number;
+  overlapEndMs: number;
+  actColor: string;
 }
 
 interface ScheduleRowProps {
@@ -23,44 +31,156 @@ interface ScheduleRowProps {
   conflicted: boolean;
   festivalId: string;
   overlapSegments: OverlapSegment[];
+  expanded: boolean;
+  onToggleExpand: () => void;
 }
 
-function OverlapSegmentPin({ seg }: { seg: OverlapSegment }) {
-  const [hovered, setHovered] = useState(false);
+function MiniTimeline({
+  seg,
+  actName,
+  actColor,
+}: {
+  seg: OverlapSegment;
+  actName: string;
+  actColor: string;
+}) {
+  const winS = Math.min(seg.actStartMs, seg.conflictStartMs);
+  const winE = Math.max(seg.actEndMs, seg.conflictEndMs);
+  const winDur = winE - winS;
+  const pct = (ms: number) => ((ms - winS) / winDur) * 100;
+
+  const actLeft = pct(seg.actStartMs);
+  const actW = pct(seg.actEndMs) - actLeft;
+  const confLeft = pct(seg.conflictStartMs);
+  const confW = pct(seg.conflictEndMs) - confLeft;
+  const ovLeft = pct(seg.overlapStartMs);
+  const ovW = pct(seg.overlapEndMs) - ovLeft;
 
   return (
-    <div
-      className="absolute w-full rounded-full"
-      style={{
-        top: `${seg.topPct}%`,
-        height: `${seg.heightPct}%`,
-        backgroundColor: seg.color,
-        opacity: 0.85,
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {hovered && (
-        <div
-          className="absolute right-5 z-50 w-52 rounded-lg shadow-xl border border-white/10 bg-neutral-900 p-3 text-xs text-white pointer-events-none"
-          style={{ top: "50%", transform: "translateY(-50%)" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="font-bold mb-1" style={{ color: seg.color }}>
-            {seg.conflictName}
-          </p>
-          <p className="text-neutral-400 mb-2">{seg.conflictStageName}</p>
-          <div className="flex items-center gap-1 mb-1">
-            <span className="text-yellow-400">⚠</span>
-            <span className="font-semibold">
-              {seg.overlapMinutes} min overlap
-            </span>
-          </div>
-          <p className="text-neutral-400">
-            {seg.overlapStart} – {seg.overlapEnd}
-          </p>
+    <div className="mt-3 select-none">
+      {/* Act row */}
+      <div className="mb-1">
+        <p className="text-[10px] text-neutral-400 mb-0.5 truncate">
+          {actName}
+        </p>
+        <div className="relative h-4 rounded bg-white/5 w-full">
+          <div
+            className="absolute h-full rounded opacity-80"
+            style={{
+              left: `${actLeft}%`,
+              width: `${actW}%`,
+              backgroundColor: actColor,
+            }}
+          />
+          <div
+            className="absolute h-full rounded"
+            style={{
+              left: `${ovLeft}%`,
+              width: `${ovW}%`,
+              backgroundColor: "#facc15",
+              opacity: 0.5,
+            }}
+          />
         </div>
-      )}
+      </div>
+      {/* Conflict row */}
+      <div className="mb-2">
+        <p className="text-[10px] text-neutral-400 mb-0.5 truncate">
+          {seg.conflictName}
+        </p>
+        <div className="relative h-4 rounded bg-white/5 w-full">
+          <div
+            className="absolute h-full rounded opacity-80"
+            style={{
+              left: `${confLeft}%`,
+              width: `${confW}%`,
+              backgroundColor: seg.color,
+            }}
+          />
+          <div
+            className="absolute h-full rounded"
+            style={{
+              left: `${ovLeft}%`,
+              width: `${ovW}%`,
+              backgroundColor: "#facc15",
+              opacity: 0.5,
+            }}
+          />
+        </div>
+      </div>
+      {/* Time labels */}
+      <div className="relative h-3 w-full text-[9px] text-neutral-500">
+        <span className="absolute" style={{ left: `${actLeft}%` }}>
+          {format(new Date(seg.actStartMs), "HH:mm")}
+        </span>
+        <span
+          className="absolute"
+          style={{ left: `${ovLeft}%`, color: "#facc15" }}
+        >
+          {seg.overlapStart}
+        </span>
+        <span
+          className="absolute"
+          style={{
+            left: `${ovLeft + ovW}%`,
+            color: "#facc15",
+            transform: "translateX(-100%)",
+          }}
+        >
+          {seg.overlapEnd}
+        </span>
+        <span
+          className="absolute"
+          style={{ left: `${actLeft + actW}%`, transform: "translateX(-100%)" }}
+        >
+          {format(new Date(seg.actEndMs), "HH:mm")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function OverlapDetailPanel({
+  segs,
+  actName,
+  actColor,
+}: {
+  segs: OverlapSegment[];
+  actName: string;
+  actColor: string;
+}) {
+  return (
+    <div
+      className="mt-2 rounded-lg border border-white/10 bg-neutral-900/80 p-3 text-xs text-white"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="font-semibold text-yellow-400 mb-2">
+        ⚠ Conflicts ({segs.length})
+      </p>
+      {segs.map((seg) => (
+        <div
+          key={`${seg.conflictName}-${seg.overlapStart}`}
+          className="mb-4 last:mb-0"
+        >
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <div>
+              <p className="font-bold" style={{ color: seg.color }}>
+                {seg.conflictName}
+              </p>
+              <p className="text-neutral-400">{seg.conflictStageName}</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-semibold text-yellow-300">
+                {seg.overlapMinutes} min
+              </p>
+              <p className="text-neutral-400">
+                {seg.overlapStart} – {seg.overlapEnd}
+              </p>
+            </div>
+          </div>
+          <MiniTimeline seg={seg} actName={actName} actColor={actColor} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -72,6 +192,8 @@ function ScheduleRow({
   conflicted,
   festivalId,
   overlapSegments,
+  expanded,
+  onToggleExpand,
 }: ScheduleRowProps) {
   const { data: thumbnail } = useQuery({
     queryKey: ["thumbnail", act.id],
@@ -83,44 +205,71 @@ function ScheduleRow({
   const end = format(new Date(act.endTime), "HH:mm");
 
   return (
-    <div
-      className={`relative flex items-center gap-3 rounded-lg p-3 mb-2 cursor-pointer transition-opacity overflow-hidden
-        ${conflicted ? "ring-2 ring-yellow-400" : ""}`}
-      style={{
-        backgroundColor: `${stageColor}22`,
-        borderLeft: `4px solid ${stageColor}`,
-      }}
-      onClick={() => toggleAct(festivalId, act.id)}
-    >
-      <img
-        src={
-          thumbnail ??
-          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="24" r="12" fill="%23555"/><ellipse cx="32" cy="50" rx="20" ry="14" fill="%23555"/></svg>'
-        }
-        alt={act.name}
-        className="w-14 h-14 rounded object-cover object-top shrink-0"
-        loading="lazy"
-      />
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-white truncate">{act.name}</p>
-        <p className="text-sm text-neutral-400 truncate">{stageName}</p>
-        <p className="text-sm text-neutral-300">
-          {start} – {end}
-        </p>
+    <div className="mb-2">
+      <div
+        className={`relative flex items-center gap-3 rounded-lg p-3 cursor-pointer transition-opacity
+          ${conflicted ? "ring-2 ring-yellow-400" : ""}
+          ${expanded ? "rounded-b-none" : ""}`}
+        style={{
+          backgroundColor: `${stageColor}22`,
+          borderLeft: `4px solid ${stageColor}`,
+        }}
+        onClick={() => toggleAct(festivalId, act.id)}
+      >
+        <img
+          src={
+            thumbnail ??
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="24" r="12" fill="%23555"/><ellipse cx="32" cy="50" rx="20" ry="14" fill="%23555"/></svg>'
+          }
+          alt={act.name}
+          className="w-14 h-14 rounded object-cover object-top shrink-0"
+          loading="lazy"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white truncate">{act.name}</p>
+          <p className="text-sm text-neutral-400 truncate">{stageName}</p>
+          <p className="text-sm text-neutral-300">
+            {start} – {end}
+          </p>
+        </div>
+
+        {/* Overlap bar — click expands detail */}
+        {overlapSegments.length > 0 && (
+          <button
+            className="relative w-4 self-stretch shrink-0 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            title="Click to see conflict details"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+          >
+            {overlapSegments.map((seg) => (
+              <div
+                key={`${seg.conflictName}-${seg.topPct}`}
+                className="absolute w-full rounded-full"
+                style={{
+                  top: `${seg.topPct}%`,
+                  height: `${Math.max(seg.heightPct, 8)}%`,
+                  backgroundColor: seg.color,
+                  opacity: 0.85,
+                }}
+              />
+            ))}
+          </button>
+        )}
       </div>
 
-      {/* Overlap bar on the right */}
-      {overlapSegments.length > 0 && (
+      {/* Expanded conflict detail panel */}
+      {expanded && overlapSegments.length > 0 && (
         <div
-          className="relative w-3 self-stretch shrink-0 rounded-full bg-white/10"
-          title="Overlap with other acts"
+          className="rounded-b-lg border-x-2 border-b-2 border-yellow-400/40"
+          style={{ backgroundColor: `${stageColor}11` }}
         >
-          {overlapSegments.map((seg) => (
-            <OverlapSegmentPin
-              key={`${seg.conflictName}-${seg.topPct}`}
-              seg={seg}
-            />
-          ))}
+          <OverlapDetailPanel
+            segs={overlapSegments}
+            actName={act.name}
+            actColor={stageColor}
+          />
         </div>
       )}
     </div>
@@ -148,6 +297,15 @@ interface MyScheduleViewProps {
 
 export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
   const { isSelected } = useSelectionStore();
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const selectedActs = useMemo(() => {
     const acts: (Act & { stageColor: string; stageName: string })[] = [];
@@ -200,6 +358,13 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
           overlapStart: fmtOverlapS,
           overlapEnd: fmtOverlapE,
           overlapMinutes: overlapMins,
+          actStartMs: aS,
+          actEndMs: aE,
+          conflictStartMs: bS,
+          conflictEndMs: bE,
+          overlapStartMs: overlapS,
+          overlapEndMs: overlapE,
+          actColor: a.stageColor,
         };
         const segForB: OverlapSegment = {
           topPct: ((overlapS - bS) / bDur) * 100,
@@ -210,6 +375,13 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
           overlapStart: fmtOverlapS,
           overlapEnd: fmtOverlapE,
           overlapMinutes: overlapMins,
+          actStartMs: bS,
+          actEndMs: bE,
+          conflictStartMs: aS,
+          conflictEndMs: aE,
+          overlapStartMs: overlapS,
+          overlapEndMs: overlapE,
+          actColor: b.stageColor,
         };
 
         map.set(a.id, [...(map.get(a.id) ?? []), segForA]);
@@ -249,6 +421,8 @@ export function MyScheduleView({ festival, festivalId }: MyScheduleViewProps) {
         conflicted={overlapMap.has(act.id)}
         festivalId={festivalId}
         overlapSegments={overlapMap.get(act.id) ?? []}
+        expanded={expandedIds.has(act.id)}
+        onToggleExpand={() => toggleExpand(act.id)}
       />,
     );
   });
