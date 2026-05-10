@@ -119,7 +119,9 @@ export function FestivalManager() {
       setAiJson("");
       setAiPromptVisible(false);
     } catch {
-      setAiError("Could not parse the JSON. Make sure you pasted only the raw JSON from the AI response.");
+      setAiError(
+        "Could not parse the JSON. Make sure you pasted only the raw JSON from the AI response.",
+      );
     }
   }
 
@@ -168,27 +170,43 @@ export function FestivalManager() {
             )}
             <button
               className="text-xs text-neutral-400 hover:text-white px-1"
-              onClick={(e) => { e.stopPropagation(); setRenamingId(f.id); setRenameValue(f.name); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenamingId(f.id);
+                setRenameValue(f.name);
+              }}
               title="Rename"
-            >✏</button>
+            >
+              ✏
+            </button>
             <button
               className="text-xs text-red-400 hover:text-red-300 px-1"
-              onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${f.name}"?`)) removeFestival(f.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm(`Delete "${f.name}"?`)) removeFestival(f.id);
+              }}
               title="Delete"
-            >✕</button>
+            >
+              ✕
+            </button>
           </li>
         ))}
         {festivals.length === 0 && (
-          <p className="text-sm text-neutral-500">No festivals yet. Import one below.</p>
+          <p className="text-sm text-neutral-500">
+            No festivals yet. Import one below.
+          </p>
         )}
       </ul>
 
       {/* ── Import with AI ── */}
       <div className="space-y-3 border border-violet-700/50 rounded-xl p-4 bg-violet-950/20">
         <div>
-          <p className="text-sm font-bold text-violet-300">Import with AI (ChatGPT / Copilot)</p>
+          <p className="text-sm font-bold text-violet-300">
+            Import with AI (ChatGPT / Copilot)
+          </p>
           <p className="text-xs text-neutral-400 mt-0.5">
-            No backend needed. Paste the festival URL, copy the generated prompt into ChatGPT or Copilot, then paste the JSON response back here.
+            No backend needed. Paste the festival URL, copy the generated prompt
+            into ChatGPT or Copilot, then paste the JSON response back here.
           </p>
         </div>
 
@@ -223,12 +241,16 @@ export function FestivalManager() {
             </div>
 
             <p className="text-xs text-neutral-400">
-              Paste this into <strong className="text-white">ChatGPT</strong> or <strong className="text-white">GitHub Copilot Chat</strong> (with web browsing enabled), then paste the JSON response below:
+              Paste this into <strong className="text-white">ChatGPT</strong> or{" "}
+              <strong className="text-white">GitHub Copilot Chat</strong> (with
+              web browsing enabled), then paste the JSON response below:
             </p>
 
             <textarea
               className="w-full bg-neutral-900 rounded-lg px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 min-h-32 font-mono"
-              placeholder={'{\n  "id": "...",\n  "name": "Festival Name",\n  ...\n}'}
+              placeholder={
+                '{\n  "id": "...",\n  "name": "Festival Name",\n  ...\n}'
+              }
               value={aiJson}
               onChange={(e) => setAiJson(e.target.value)}
             />
@@ -248,7 +270,9 @@ export function FestivalManager() {
 
       {/* ── JSON file import ── */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold text-neutral-300">Import from JSON file</label>
+        <label className="text-sm font-semibold text-neutral-300">
+          Import from JSON file
+        </label>
         <input
           type="file"
           accept=".json"
