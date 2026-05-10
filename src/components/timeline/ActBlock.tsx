@@ -51,21 +51,39 @@ export function ActBlock({
         ${selected ? "" : "bg-neutral-800 dark:bg-neutral-700"}
         ${opacity} ${ring}`}
     >
-      <span className="block px-1 py-0.5 text-xs font-semibold text-white truncate leading-tight">
-        {act.name}
-      </span>
-      {!isSmall && (
-        <span className="block px-1 text-[10px] text-white/70 truncate">
-          {act.startTime.slice(11, 16)} – {act.endTime.slice(11, 16)}
-        </span>
-      )}
-      {hasImage && thumbnail && (
-        <img
-          src={thumbnail}
-          alt={act.name}
-          className="w-full h-10 object-cover object-top opacity-60 mt-0.5"
-          loading="lazy"
-        />
+      {hasImage && thumbnail ? (
+        <>
+          {/* Image fills the whole block */}
+          <img
+            src={thumbnail}
+            alt={act.name}
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-50"
+            loading="lazy"
+          />
+          {/* Text overlaid on top with a gradient scrim */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
+          <div className="relative z-10 px-1 py-0.5">
+            <span className="block text-xs font-semibold text-white truncate leading-tight drop-shadow">
+              {act.name}
+            </span>
+            {!isSmall && (
+              <span className="block text-[10px] text-white/80 truncate drop-shadow">
+                {act.startTime.slice(11, 16)} – {act.endTime.slice(11, 16)}
+              </span>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="block px-1 py-0.5 text-xs font-semibold text-white truncate leading-tight">
+            {act.name}
+          </span>
+          {!isSmall && (
+            <span className="block px-1 text-[10px] text-white/70 truncate">
+              {act.startTime.slice(11, 16)} – {act.endTime.slice(11, 16)}
+            </span>
+          )}
+        </>
       )}
     </button>
   );

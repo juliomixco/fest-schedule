@@ -1,51 +1,36 @@
 import { getCachedThumbnail, cacheThumbnail } from "../../db";
 
-const LASTFM_KEY = import.meta.env.VITE_LASTFM_API_KEY;
-
 const FALLBACK_SVG =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="24" r="12" fill="%23555"/><ellipse cx="32" cy="50" rx="20" ry="14" fill="%23555"/></svg>';
 
-async function fetchMusicBrainzThumbnail(
+async function fetchWikipediaThumbnail(
   artistName: string,
 ): Promise<string | null> {
   try {
-    const searchUrl = `https://musicbrainz.org/ws/2/artist?query=${encodeURIComponent(artistName)}&fmt=json&limit=1`;
-    const res = await fetch(searchUrl, {
-      headers: {
-        "User-Agent": "FestSchedule/1.0 (https://github.com/festschedule)",
-      },
-    });
+    // Wikipedia page titles use underscores; try the artist name directly
+    const title = artistName.trim().replace(/ /g, "_");
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) return null;
     const data = await res.json();
-    const mbid = data.artists?.[0]?.id;
-    if (!mbid) return null;
-
-    // Try to get artist image from the CAA (no images for artists, skip)
-    // MusicBrainz doesn't serve artist photos — skip to Last.fm
-    return null;
+    return (data.thumbnail?.source as string) ?? null;
   } catch {
     return null;
   }
 }
 
-async function fetchLastFmThumbnail(
+async function fetchItunesThumbnail(
   artistName: string,
 ): Promise<string | null> {
-  if (!LASTFM_KEY) return null;
   try {
-    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(artistName)}&api_key=${LASTFM_KEY}&format=json`;
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&entity=album&limit=1`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
-    const images: { "#text": string; size: string }[] =
-      data.artist?.image ?? [];
-    const large = images.find(
-      (img) => img.size === "large" || img.size === "extralarge",
-    );
-    const src = large?.["#text"] ?? images[images.length - 1]?.["#text"];
-    return src && !src.includes("2a96cbd8b46e442fc41c2b86b821562f")
-      ? src
-      : null;
+    const album = data.results?.[0];
+    // artworkUrl100 → bump to 400x400
+    const src: string | undefined = album?.artworkUrl100;
+    return src ? src.replace("100x100bb", "400x400bb") : null;
   } catch {
     return null;
   }
@@ -70,18 +55,18 @@ export async function resolveThumbnail(
     return scrapedUrl;
   }
 
-  // 3. Last.fm
-  const lastfm = await fetchLastFmThumbnail(artistName);
-  if (lastfm) {
-    await cacheThumbnail(actId, lastfm);
-    return lastfm;
+  // 3. Wikipedia (free, no auth, artist photo when available)
+  const wiki = await fetchWikipediaThumbnail(artistName);
+  if (wiki) {
+    await cacheThumbnail(actId, wiki);
+    return wiki;
   }
 
-  // 4. MusicBrainz (currently returns null for artist photos, left for future extension)
-  const mb = await fetchMusicBrainzThumbnail(artistName);
-  if (mb) {
-    await cacheThumbnail(actId, mb);
-    return mb;
+  // 4. iTunes album art fallback
+  const itunes = await fetchItunesThumbnail(artistName);
+  if (itunes) {
+    await cacheThumbnail(actId, itunes);
+    return itunes;
   }
 
   return FALLBACK_SVG;
