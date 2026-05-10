@@ -5,6 +5,11 @@ import { useSelectionStore } from "../../stores";
 import { resolveThumbnail } from "../../services/thumbnails";
 import type { Act, Festival } from "../../types";
 
+interface MyScheduleViewProps {
+  festival: Festival;
+  festivalId: string;
+}
+
 interface OverlapSegment {
   topPct: number;
   heightPct: number;
